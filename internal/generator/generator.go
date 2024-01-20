@@ -56,9 +56,11 @@ func writeFile(enumDef extractor.EnumDef, values []string) error {
 		return fmt.Errorf("building file name: %w", err)
 	}
 
+	fileNameTmp := fileName + ".tmp"
+
 	file, err := os.Create(fileName + ".tmp")
 	if err != nil {
-		return fmt.Errorf("opening file %q: %w", fileName+".tmp", err)
+		return fmt.Errorf("opening file %q: %w", fileNameTmp, err)
 	}
 
 	defer file.Close()
@@ -69,11 +71,11 @@ func writeFile(enumDef extractor.EnumDef, values []string) error {
 	}
 
 	if err = fileContentTmpl.Execute(file, renderData{EnumDef: enumDef, Values: values}); err != nil {
-		return fmt.Errorf("writing file %q: %w", fileName+".tmp", err)
+		return fmt.Errorf("writing file %q: %w", fileNameTmp, err)
 	}
 
-	if err = os.Rename(fileName+".tmp", fileName); err != nil {
-		return fmt.Errorf("renaming file %q to %q: %w", fileName+".tmp", fileName, err)
+	if err = os.Rename(fileNameTmp, fileName); err != nil {
+		return fmt.Errorf("renaming file %q to %q: %w", fileNameTmp, fileName, err)
 	}
 
 	return nil
