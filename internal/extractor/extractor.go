@@ -6,6 +6,7 @@ import (
 	"path"
 	"strings"
 
+	"golang.org/x/exp/slog"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -93,6 +94,17 @@ func parseSpec(raw ast.Spec) (enumValue, bool) {
 	return enumValue{
 		name: spec.Names[0].Name,
 		enum: specType.Name,
-		base: strings.Trim(spec.Type.(*ast.Ident).Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident).Name, `"`),
+		base: digTypeName(spec.Type.(*ast.Ident)),
 	}, true
+}
+
+func digTypeName(decl *ast.Ident) string {
+	for decl.Obj != nil {
+		slog.Info("digTypeName", "decl", decl)
+		decl = decl.Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident)
+	}
+
+	slog.Info("digTypeName", "decl", decl)
+
+	return decl.Name
 }
