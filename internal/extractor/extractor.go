@@ -1,3 +1,4 @@
+// Package extractor enumerating the files and extracting the looks-like-enum lines
 package extractor
 
 import (
@@ -6,14 +7,15 @@ import (
 	"path"
 	"strings"
 
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 const (
-	EnumSuffix = "Enum"
-	TestSuffix = "_test.go"
+	enumSuffix = "Enum"
+	testSuffix = "_test.go"
 )
 
+// EnumDef describes the enum const record with all the details.
 type EnumDef struct {
 	Enum     string
 	BaseType string
@@ -22,15 +24,16 @@ type EnumDef struct {
 	Test     bool
 }
 
-func Extract(prog *loader.Program) map[EnumDef][]string {
+// Extract the enum constants relative records.
+func Extract(pkgs []*packages.Package, fset *token.FileSet) map[EnumDef][]string {
 	res := make(map[EnumDef][]string)
 
-	for _, pkgInfo := range prog.InitialPackages() {
-		for _, file := range pkgInfo.Files {
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Syntax {
 			var (
-				fileName = prog.Fset.File(file.Pos()).Name()
+				fileName = fset.File(file.Pos()).Name()
 				dirName  = path.Dir(fileName)
-				isTest   = strings.HasSuffix(fileName, TestSuffix)
+				isTest   = strings.HasSuffix(fileName, testSuffix)
 			)
 
 			for _, decl := range file.Decls {
@@ -38,7 +41,7 @@ func Extract(prog *loader.Program) map[EnumDef][]string {
 					enumDef := EnumDef{
 						Enum:     v.typeName,
 						BaseType: v.baseType,
-						Package:  pkgInfo.Pkg.Name(),
+						Package:  pkg.Name,
 						Dir:      dirName,
 						Test:     isTest,
 					}
@@ -72,7 +75,7 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 		return nil
 	}
 
-	res := make([]enumValue, 0, 8)
+	res := make([]enumValue, 0, 8) //nolint:gomnd
 
 	var lastType enumType
 
@@ -89,7 +92,7 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
 	spec, isValue := raw.(*ast.ValueSpec)
 	if !isValue || len(spec.Names) < 1 {
-		return enumValue{}, false
+		return enumValue{}, false //nolint:exhaustruct
 	}
 
 	specType := lastType
@@ -98,11 +101,11 @@ func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
 	case spec.Type != nil:
 		specType = extractEnumType(spec.Type)
 	case len(spec.Values) != 0:
-		return enumValue{}, false
+		return enumValue{}, false //nolint:exhaustruct
 	}
 
 	if specType.typeName == "" {
-		return enumValue{}, false
+		return enumValue{}, false //nolint:exhaustruct
 	}
 
 	return enumValue{
@@ -113,8 +116,8 @@ func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
 
 func extractEnumType(expr ast.Expr) enumType {
 	typeIdent, ok := expr.(*ast.Ident)
-	if !ok || !strings.HasSuffix(typeIdent.Name, EnumSuffix) {
-		return enumType{}
+	if !ok || !strings.HasSuffix(typeIdent.Name, enumSuffix) {
+		return enumType{} //nolint:exhaustruct
 	}
 
 	return enumType{
@@ -125,7 +128,7 @@ func extractEnumType(expr ast.Expr) enumType {
 
 func digTypeName(decl *ast.Ident) string {
 	for decl.Obj != nil {
-		decl = decl.Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident)
+		decl = decl.Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident) //nolint:forcetypeassert
 	}
 
 	return decl.Name

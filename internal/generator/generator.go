@@ -1,3 +1,4 @@
+// Package generator generates the files
 package generator
 
 import (
@@ -13,31 +14,33 @@ import (
 	"github.com/Djarvur/go-silly-enum/internal/parser"
 )
 
-//go:embed codegen.go.tmpl
-var fileContentTmplSrc string
-
 const fileNameTmplSrc = `{{.Dir}}/enum_silly_codegen_{{.Enum}}{{if .Test}}_test{{end}}.go`
 
+//nolint:gochecknoglobals
 var (
+	//go:embed codegen.go.tmpl
+	fileContentTmplSrc string
+
 	fileContentTmpl = template.Must(template.New("fileContent").Parse(fileContentTmplSrc))
 	fileNameTmpl    = template.Must(template.New("fileName").Parse(fileNameTmplSrc))
 )
 
-func Generate(pkgs, tags []string, includeTests bool, log *slog.Logger) ([]string, error) {
-	prog, rest, err := parser.Parse(pkgs, tags, includeTests)
+// Generate generates the files, calling parser and extractor.
+func Generate(dir string, tags []string, includeTests bool, log *slog.Logger) error {
+	pkgs, fset, err := parser.Parse(dir, tags, includeTests)
 	if err != nil {
-		return rest, fmt.Errorf("parsing sources: %w", err)
+		return fmt.Errorf("parsing sources: %w", err)
 	}
 
-	for enumDef, values := range extractor.Extract(prog) {
+	for enumDef, values := range extractor.Extract(pkgs, fset) {
 		if err = writeFile(enumDef, values); err != nil {
-			return rest, fmt.Errorf("generating: %w", err)
+			return fmt.Errorf("generating: %w", err)
 		}
 
 		log.Debug("Generate", "enum", enumDef, "values", values)
 	}
 
-	return rest, nil
+	return nil
 }
 
 func buildFileName(data extractor.EnumDef) (string, error) {
@@ -58,12 +61,12 @@ func writeFile(enumDef extractor.EnumDef, values []string) error {
 
 	fileNameTmp := fileName + ".tmp"
 
-	file, err := os.Create(fileName + ".tmp")
+	file, err := os.Create(fileName + ".tmp") //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("opening file %q: %w", fileNameTmp, err)
 	}
 
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	type renderData struct {
 		extractor.EnumDef

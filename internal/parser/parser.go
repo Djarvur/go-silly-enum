@@ -1,23 +1,27 @@
+// Package parser is a wrapper for standard packages tool
 package parser
 
 import (
-	"go/build"
+	"fmt"
+	"go/token"
 
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
-func Parse(pkgs, tags []string, includeTests bool) (*loader.Program, []string, error) {
-	conf := loader.Config{
-		Build: &build.Default,
+// Parse the packages.
+func Parse(dir string, tags []string, includeTests bool) ([]*packages.Package, *token.FileSet, error) {
+	cfg := &packages.Config{ //nolint:exhaustruct
+		Fset:       token.NewFileSet(),
+		Mode:       packages.NeedName | packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
+		Dir:        dir,
+		BuildFlags: tags,
+		Tests:      includeTests,
 	}
-	conf.Build.BuildTags = append(conf.Build.BuildTags, tags...)
 
-	rest, err := conf.FromArgs(pkgs, includeTests)
+	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
-		return nil, rest, err
+		return nil, nil, fmt.Errorf("loading sources: %w", err)
 	}
 
-	prog, err := conf.Load()
-
-	return prog, rest, err
+	return pkgs, cfg.Fset, nil
 }

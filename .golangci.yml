@@ -95,10 +95,25 @@ linters-settings:
     # minimal occurrences count to trigger, 3 by default
     min-occurrences: 3
   depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages:
-      - github.com/davecgh/go-spew/spew
+      rules:
+        main:
+          files:
+            - !$test
+          allow:
+            - $gostd
+            - github.com/Djarvur/go-silly-enum
+        cmd:
+          files:
+            - "cmd/*/*.go"
+          allow:
+            - $gostd
+            - github.com/Djarvur/go-silly-enum
+        tests:
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/Djarvur/go-silly-enum
 
 linters:
   #enable:
@@ -118,6 +133,7 @@ linters:
     - nosnakecase      # The repository of the linter has been deprecated by the owner. Replaced by revive(var-naming).
     - scopelint        # The repository of the linter has been deprecated by the owner. Replaced by exportloopref.
     - varnamelen       # Useless in the scope of this project.
+    - gci              # too many false positives
   disable-all: false
   #presets:
   #  - bugs

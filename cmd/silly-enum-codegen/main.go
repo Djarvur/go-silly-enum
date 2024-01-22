@@ -1,5 +1,7 @@
+// Package main is an app itself
 package main
 
+//nolint:gci
 import (
 	"os"
 
@@ -10,6 +12,8 @@ import (
 )
 
 func main() {
+	app := buildApp()
+
 	err := app.Execute()
 	if err != nil {
 		slog.Error("run", "error", err)
@@ -17,15 +21,17 @@ func main() {
 	}
 }
 
-var app = &cobra.Command{
-	Use:   "silly-enum-codegen",
-	Short: "Generates some silly but useful methods for Go enum (sort of) types",
-}
+func buildApp() *cobra.Command {
+	app := &cobra.Command{ //nolint:exhaustruct
+		Use:   "silly-enum-codegen",
+		Short: "Generates some silly but useful methods for Go enum (sort of) types",
+	}
 
-func init() {
 	app.PersistentFlags().Bool("verbose", false, "verbose logging")
 
 	app.AddCommand(
 		flags.Generate,
 	)
+
+	return app
 }
