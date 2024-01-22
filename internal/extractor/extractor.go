@@ -6,7 +6,6 @@ import (
 	"path"
 	"strings"
 
-	"golang.org/x/exp/slog"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -37,8 +36,8 @@ func Extract(prog *loader.Program) map[EnumDef][]string {
 			for _, decl := range file.Decls {
 				for _, v := range extractEnumVals(decl) {
 					enumDef := EnumDef{
-						Enum:     v.enum,
-						BaseType: v.base,
+						Enum:     v.typeName,
+						BaseType: v.baseType,
 						Package:  pkgInfo.Pkg.Name(),
 						Dir:      dirName,
 						Test:     isTest,
@@ -53,10 +52,14 @@ func Extract(prog *loader.Program) map[EnumDef][]string {
 	return res
 }
 
+type enumType struct {
+	typeName string
+	baseType string
+}
+
 type enumValue struct {
 	name string
-	enum string
-	base string
+	enumType
 }
 
 func extractEnumVals(raw ast.Decl) []enumValue {
@@ -71,8 +74,11 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 
 	res := make([]enumValue, 0, 8)
 
+	var lastType enumType
+
 	for _, rawSpec := range decl.Specs {
-		if v, parsed := parseSpec(rawSpec); parsed {
+		if v, parsed := parseSpec(rawSpec, lastType); parsed {
+			lastType = v.enumType
 			res = append(res, v)
 		}
 	}
@@ -80,31 +86,47 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 	return res
 }
 
-func parseSpec(raw ast.Spec) (enumValue, bool) {
-	spec, ok := raw.(*ast.ValueSpec)
-	if !ok || spec.Type == nil || len(spec.Names) < 1 {
+func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
+	spec, isValue := raw.(*ast.ValueSpec)
+	if !isValue || len(spec.Names) < 1 {
 		return enumValue{}, false
 	}
 
-	specType, ok := spec.Type.(*ast.Ident)
-	if !ok || !strings.HasSuffix(specType.Name, EnumSuffix) {
+	specType := lastType
+
+	switch {
+	case spec.Type != nil:
+		specType = extractEnumType(spec.Type)
+	case len(spec.Values) != 0:
+		return enumValue{}, false
+	}
+
+	if specType.typeName == "" {
 		return enumValue{}, false
 	}
 
 	return enumValue{
-		name: spec.Names[0].Name,
-		enum: specType.Name,
-		base: digTypeName(spec.Type.(*ast.Ident)),
+		name:     spec.Names[0].Name,
+		enumType: specType,
 	}, true
+}
+
+func extractEnumType(expr ast.Expr) enumType {
+	typeIdent, ok := expr.(*ast.Ident)
+	if !ok || !strings.HasSuffix(typeIdent.Name, EnumSuffix) {
+		return enumType{}
+	}
+
+	return enumType{
+		typeName: typeIdent.Name,
+		baseType: digTypeName(typeIdent),
+	}
 }
 
 func digTypeName(decl *ast.Ident) string {
 	for decl.Obj != nil {
-		slog.Info("digTypeName", "decl", decl)
 		decl = decl.Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident)
 	}
-
-	slog.Info("digTypeName", "decl", decl)
 
 	return decl.Name
 }

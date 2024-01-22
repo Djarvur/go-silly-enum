@@ -10,8 +10,10 @@ type Test1Enum uint8
 
 const (
 	TestVal11 Test1Enum = iota
-	TestVal12 Test1Enum = iota
-	TestVal13 Test1Enum = iota
+	TestVal12
+	TestVal13
+	TestVal16 = 6
+	TestVal15 = "5"
 )
 
 type Test2Enum uint8

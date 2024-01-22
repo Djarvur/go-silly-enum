@@ -1,2 +1,92 @@
-= go-silly-enum
+= go-silly-enum image:https://godoc.org/github.com/Djarvur/go-silly-enum?status.svg["GoDoc",link="http://godoc.org/github.com/Djarvur/go-silly-enum"] image:https://github.com/Djarvur/go-silly-enum/workflows/Test/badge.svg?branch=master["Build Status"] image:https://coveralls.io/repos/Djarvur/go-silly-enum/badge.svg?branch=master&service=github["Coverage Status",link="https://coveralls.io/github/Djarvur/go-silly-enum?branch=master"]
+Daniel Podolsky
+:toc:
+
+
 Simple code to extend quasi-enum support in Go
+
+== Goal
+
+We do not have standard Enum type in go, such a pity.
+
+The thing closest to Enum we have in Go is something like this:
+
+[source,go]
+----
+type Test1Enum uint8
+
+const (
+	TestVal11 Test1Enum = iota
+	TestVal12
+	TestVal13
+)
+----
+
+This is Ok (_not really_), but there a some glitches.
+
+The one most annoying for me is we will see the number printing the Enum value.
+
+[source,go]
+----
+fmt.Printf("TestVal11=%v\n", TestVal11)
+// Output is TestVal11=0x1, and I personally hate it.
+----
+
+Fortunately, we can fix with providing proper `String()` method for the type Test1Enum.
+
+[source,go]
+----
+type Test1Enum uint8
+
+func (v Test1Enum) String() string {
+	switch v {
+	case TestVal11:
+		return "TestVal11"
+	case TestVal12:
+		return "TestVal12"
+	case TestVal13:
+		return "TestVal13"
+	default:
+		return fmt.Sprintf("Test1Enum=%v", uint8(v))
+	}
+}
+
+const (
+	TestVal11 Test1Enum = iota
+	TestVal12
+	TestVal13
+)
+
+fmt.Printf("TestVal11=%v\n", TestVal11)
+// Output is TestVal11=TestVal11, nice.
+----
+
+Unfortunately, it could be annoying to maintain such `String()` methods for all the Enums we have.
+
+Fortunately, `String()` methods could be generated automatically!
+
+== How it works
+
+This app scanning the packages provided for the typed constants with type name has `Enum` suffix.
+
+For each such type it generates `String()`, `MarshalJSON() ([]byte, error)`, `UnmarshalJSON(data []byte) error` methods with all the found relative consts in use.
+
+== Installation
+
+[source,sh]
+----
+go install github.com/Djarvur/go-silly-enum/cmd/silly-enum-codegen@latest
+----
+
+== Usage
+
+[source,sh]
+----
+silly-enum-codegen generate --verbose \
+  ./internal/extractor/testdata/pkg1 \
+  ./internal/extractor/testdata/pkg2
+----
+
+== Alternatives
+
+- https://github.com/abice/go-enum[go-enum] generates enums from comments. Great, but the values could not be used in the code without codegen, which could be annoing.

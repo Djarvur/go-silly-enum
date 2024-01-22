@@ -21,8 +21,15 @@ func (v {{.Enum}}) String() string {
 	}
 }
 
-func (v *{{.Enum}}) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.String())
+func (v {{.Enum}}) MarshalJSON() ([]byte, error) {
+	switch v {
+{{range .Values}}
+	case {{.}}:
+		return json.Marshal(v.String())
+{{end}}
+	default:
+		return nil, fmt.Errorf("%v: %w", {{.BaseType}}(v), Err{{.Enum}}InvalidValue)
+	}
 }
 
 func (v *{{.Enum}}) UnmarshalJSON(data []byte) error {
@@ -55,6 +62,30 @@ func (v *{{.Enum}}) UnmarshalJSON(data []byte) error {
 {{end}}
 	default:
 		return fmt.Errorf("%v: %w", n, Err{{.Enum}}InvalidValue)
+	}
+
+	return nil
+}
+
+func (v {{.Enum}}) MarshalText() (text []byte, err error) {
+	switch v {
+{{range .Values}}
+	case {{.}}:
+		return []byte("{{.}}"), nil
+{{end}}
+	default:
+		return nil, fmt.Errorf("%v: %w", v, Err{{.Enum}}InvalidValue)
+	}
+}
+
+func (v *{{.Enum}}) UnmarshalText(text []byte) error {
+	switch string(text) {
+	{{range .Values}}
+		case "{{.}}":
+		*v = {{.}}
+	{{end}}
+	default:
+		return fmt.Errorf("%q: %w", text, Err{{.Enum}}InvalidValue)
 	}
 
 	return nil

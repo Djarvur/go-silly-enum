@@ -18,6 +18,7 @@ var Generate = &cobra.Command{
 	Use:   "generate",
 	Short: "read sources and generate the code",
 	Run:   generateRun,
+	Args:  cobra.MinimumNArgs(1),
 }
 
 func init() {
