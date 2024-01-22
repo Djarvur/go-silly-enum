@@ -82,9 +82,7 @@ go install github.com/Djarvur/go-silly-enum/cmd/silly-enum-codegen@latest
 
 [source,sh]
 ----
-silly-enum-codegen generate --verbose \
-  ./internal/extractor/testdata/pkg1 \
-  ./internal/extractor/testdata/pkg2
+silly-enum-codegen generate --verbose ./internal/extractor/testdata
 ----
 
 == Alternatives
