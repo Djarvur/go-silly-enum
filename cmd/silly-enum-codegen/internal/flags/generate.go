@@ -16,13 +16,9 @@ const (
 	enumNameFlag     = "enumName"
 )
 
-type generateCustom struct {
-	enumName *Regexp
-}
-
 // Generate is a generate CLI command.
 var Generate = func() *cobra.Command { //nolint:gochecknoglobals
-	enumName := must(NewRegexp("^.+Enum$"))
+	enumName := must(newRegexp("^.+Enum$"))
 
 	cmd := &cobra.Command{ //nolint:exhaustruct
 		Use:                   "generate package [package...]",
@@ -43,7 +39,7 @@ var Generate = func() *cobra.Command { //nolint:gochecknoglobals
 func generateRun(
 	cmd *cobra.Command,
 	args []string,
-	enumName *Regexp,
+	enumName *regexpValue,
 ) {
 	log := slogNew(must(cmd.Flags().GetBool("verbose")))
 

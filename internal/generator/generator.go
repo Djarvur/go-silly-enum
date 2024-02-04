@@ -16,10 +16,6 @@ import (
 
 const fileNameTmplSrc = `{{.Dir}}/enum_silly_codegen_{{.Enum}}{{if .Test}}_test{{end}}.go`
 
-type StringMatcher interface {
-	MatchString(s string) bool
-}
-
 //nolint:gochecknoglobals
 var (
 	//go:embed codegen.go.tmpl
@@ -35,7 +31,7 @@ func Generate(
 	tags []string,
 	env []string,
 	includeTests bool,
-	enumName StringMatcher,
+	enumName extractor.StringMatcher,
 	log *slog.Logger,
 ) error {
 	pkgs, fset, err := parser.Parse(dirs, tags, env, includeTests, log)

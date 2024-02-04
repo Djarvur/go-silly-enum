@@ -57,5 +57,5 @@ func parseFile(
 ) (*ast.File, error) {
 	log.Debug("parsing", "file", filename)
 
-	return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments)
+	return parser.ParseFile(fset, filename, src, parser.AllErrors|parser.ParseComments) //nolint:wrapcheck
 }

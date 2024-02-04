@@ -14,6 +14,7 @@ const (
 	testSuffix = "_test.go"
 )
 
+// StringMatcher is a regexp compatible matcher.
 type StringMatcher interface {
 	MatchString(s string) bool
 }

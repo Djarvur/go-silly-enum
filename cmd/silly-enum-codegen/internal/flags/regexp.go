@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var _ pflag.Value = (*Regexp)(nil)
+var _ pflag.Value = (*regexpValue)(nil)
 
-func NewRegexp(s string) (*Regexp, error) {
-	r := &Regexp{}
+func newRegexp(s string) (*regexpValue, error) {
+	r := &regexpValue{Regexp: nil}
 
 	if err := r.Set(s); err != nil {
 		return nil, err
@@ -19,11 +19,12 @@ func NewRegexp(s string) (*Regexp, error) {
 	return r, nil
 }
 
-type Regexp struct {
+type regexpValue struct {
 	*regexp.Regexp
 }
 
-func (r *Regexp) Set(s string) error {
+// Set is a method to set the regexp value.
+func (r *regexpValue) Set(s string) error {
 	compiled, err := regexp.Compile(s)
 	if err != nil {
 		return fmt.Errorf("compiling regexp %q: %w", s, err)
@@ -34,6 +35,7 @@ func (r *Regexp) Set(s string) error {
 	return nil
 }
 
-func (*Regexp) Type() string {
+// Type required to implement pflag.Value.
+func (*regexpValue) Type() string {
 	return "regexp"
 }
