@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	enumSuffix = "Enum"
 	testSuffix = "_test.go"
 )
+
+type StringMatcher interface {
+	MatchString(s string) bool
+}
 
 // EnumDef describes the enum const record with all the details.
 type EnumDef struct {
@@ -25,7 +28,11 @@ type EnumDef struct {
 }
 
 // Extract the enum constants relative records.
-func Extract(pkgs []*packages.Package, fset *token.FileSet) map[EnumDef][]string {
+func Extract(
+	pkgs []*packages.Package,
+	fset *token.FileSet,
+	enumName StringMatcher,
+) map[EnumDef][]string {
 	res := make(map[EnumDef][]string)
 
 	for _, pkg := range pkgs {
@@ -37,7 +44,7 @@ func Extract(pkgs []*packages.Package, fset *token.FileSet) map[EnumDef][]string
 			)
 
 			for _, decl := range file.Decls {
-				for _, v := range extractEnumVals(decl) {
+				for _, v := range extractEnumVals(decl, enumName) {
 					enumDef := EnumDef{
 						Enum:     v.typeName,
 						BaseType: v.baseType,
@@ -65,7 +72,7 @@ type enumValue struct {
 	enumType
 }
 
-func extractEnumVals(raw ast.Decl) []enumValue {
+func extractEnumVals(raw ast.Decl, enumName StringMatcher) []enumValue {
 	decl, ok := raw.(*ast.GenDecl)
 	if !ok {
 		return nil
@@ -80,7 +87,7 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 	var lastType enumType
 
 	for _, rawSpec := range decl.Specs {
-		if v, parsed := parseSpec(rawSpec, lastType); parsed {
+		if v, parsed := parseSpec(rawSpec, lastType, enumName); parsed {
 			lastType = v.enumType
 			res = append(res, v)
 		}
@@ -89,7 +96,7 @@ func extractEnumVals(raw ast.Decl) []enumValue {
 	return res
 }
 
-func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
+func parseSpec(raw ast.Spec, lastType enumType, enumName StringMatcher) (enumValue, bool) {
 	spec, isValue := raw.(*ast.ValueSpec)
 	if !isValue || len(spec.Names) < 1 {
 		return enumValue{}, false //nolint:exhaustruct
@@ -99,7 +106,7 @@ func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
 
 	switch {
 	case spec.Type != nil:
-		specType = extractEnumType(spec.Type)
+		specType = extractEnumType(spec.Type, enumName)
 	case len(spec.Values) != 0:
 		return enumValue{}, false //nolint:exhaustruct
 	}
@@ -114,9 +121,9 @@ func parseSpec(raw ast.Spec, lastType enumType) (enumValue, bool) {
 	}, true
 }
 
-func extractEnumType(expr ast.Expr) enumType {
+func extractEnumType(expr ast.Expr, enumName StringMatcher) enumType {
 	typeIdent, ok := expr.(*ast.Ident)
-	if !ok || !strings.HasSuffix(typeIdent.Name, enumSuffix) {
+	if !ok || !enumName.MatchString(typeIdent.Name) {
 		return enumType{} //nolint:exhaustruct
 	}
 

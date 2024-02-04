@@ -16,6 +16,10 @@ import (
 
 const fileNameTmplSrc = `{{.Dir}}/enum_silly_codegen_{{.Enum}}{{if .Test}}_test{{end}}.go`
 
+type StringMatcher interface {
+	MatchString(s string) bool
+}
+
 //nolint:gochecknoglobals
 var (
 	//go:embed codegen.go.tmpl
@@ -26,13 +30,20 @@ var (
 )
 
 // Generate generates the files, calling parser and extractor.
-func Generate(dir string, tags []string, includeTests bool, log *slog.Logger) error {
-	pkgs, fset, err := parser.Parse(dir, tags, includeTests)
+func Generate(
+	dirs []string,
+	tags []string,
+	env []string,
+	includeTests bool,
+	enumName StringMatcher,
+	log *slog.Logger,
+) error {
+	pkgs, fset, err := parser.Parse(dirs, tags, env, includeTests, log)
 	if err != nil {
 		return fmt.Errorf("parsing sources: %w", err)
 	}
 
-	for enumDef, values := range extractor.Extract(pkgs, fset) {
+	for enumDef, values := range extractor.Extract(pkgs, fset, enumName) {
 		if err = writeFile(enumDef, values); err != nil {
 			return fmt.Errorf("generating: %w", err)
 		}
