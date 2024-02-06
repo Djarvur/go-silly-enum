@@ -51,6 +51,8 @@ func Extract(
 				for _, v := range extractEnumVals(decl) {
 					if v.enumType == nil {
 						v.enumType = typeLast
+					} else {
+						typeLast = v.enumType
 					}
 
 					typeName, typeBase, ok := extractType(pkg.TypesInfo.Types, v.enumType)
