@@ -4,6 +4,7 @@ package extractor
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"path"
 	"strings"
 
@@ -45,10 +46,21 @@ func Extract(
 			)
 
 			for _, decl := range file.Decls {
-				for _, v := range extractEnumVals(decl, enumName) {
+				var typeLast ast.Expr
+
+				for _, v := range extractEnumVals(decl) {
+					if v.enumType == nil {
+						v.enumType = typeLast
+					}
+
+					typeName, typeBase, ok := extractType(pkg.TypesInfo.Types, v.enumType)
+					if !ok || !enumName.MatchString(typeName) {
+						continue
+					}
+
 					enumDef := EnumDef{
-						Enum:     v.typeName,
-						BaseType: v.baseType,
+						Enum:     typeName,
+						BaseType: typeBase,
 						Package:  pkg.Name,
 						Dir:      dirName,
 						Test:     isTest,
@@ -63,17 +75,26 @@ func Extract(
 	return res
 }
 
-type enumType struct {
-	typeName string
-	baseType string
+func extractType(info map[ast.Expr]types.TypeAndValue, expr ast.Expr) (string, string, bool) {
+	decl, ok := info[expr]
+	if !ok {
+		return "", "", false
+	}
+
+	named, ok := decl.Type.(*types.Named)
+	if !ok {
+		return "", "", false
+	}
+
+	return named.Obj().Name(), decl.Type.Underlying().String(), true
 }
 
 type enumValue struct {
-	name string
-	enumType
+	name     string
+	enumType ast.Expr
 }
 
-func extractEnumVals(raw ast.Decl, enumName StringMatcher) []enumValue {
+func extractEnumVals(raw ast.Decl) []enumValue {
 	decl, ok := raw.(*ast.GenDecl)
 	if !ok {
 		return nil
@@ -85,11 +106,8 @@ func extractEnumVals(raw ast.Decl, enumName StringMatcher) []enumValue {
 
 	res := make([]enumValue, 0, 8) //nolint:gomnd
 
-	var lastType enumType
-
 	for _, rawSpec := range decl.Specs {
-		if v, parsed := parseSpec(rawSpec, lastType, enumName); parsed {
-			lastType = v.enumType
+		if v, parsed := parseSpec(rawSpec); parsed {
 			res = append(res, v)
 		}
 	}
@@ -97,47 +115,15 @@ func extractEnumVals(raw ast.Decl, enumName StringMatcher) []enumValue {
 	return res
 }
 
-func parseSpec(raw ast.Spec, lastType enumType, enumName StringMatcher) (enumValue, bool) {
+func parseSpec(raw ast.Spec) (enumValue, bool) {
 	spec, isValue := raw.(*ast.ValueSpec)
 	if !isValue || len(spec.Names) < 1 {
 		return enumValue{}, false //nolint:exhaustruct
 	}
 
-	specType := lastType
-
-	switch {
-	case spec.Type != nil:
-		specType = extractEnumType(spec.Type, enumName)
-	case len(spec.Values) != 0:
+	if spec.Type == nil && len(spec.Values) > 0 {
 		return enumValue{}, false //nolint:exhaustruct
 	}
 
-	if specType.typeName == "" {
-		return enumValue{}, false //nolint:exhaustruct
-	}
-
-	return enumValue{
-		name:     spec.Names[0].Name,
-		enumType: specType,
-	}, true
-}
-
-func extractEnumType(expr ast.Expr, enumName StringMatcher) enumType {
-	typeIdent, ok := expr.(*ast.Ident)
-	if !ok || !enumName.MatchString(typeIdent.Name) {
-		return enumType{} //nolint:exhaustruct
-	}
-
-	return enumType{
-		typeName: typeIdent.Name,
-		baseType: digTypeName(typeIdent),
-	}
-}
-
-func digTypeName(decl *ast.Ident) string {
-	for decl.Obj != nil {
-		decl = decl.Obj.Decl.(*ast.TypeSpec).Type.(*ast.Ident) //nolint:forcetypeassert
-	}
-
-	return decl.Name
+	return enumValue{name: spec.Names[0].Name, enumType: spec.Type}, true
 }
