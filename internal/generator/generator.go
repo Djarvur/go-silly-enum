@@ -2,10 +2,10 @@
 package generator
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
+	"path"
 	"text/template"
 
 	"golang.org/x/exp/slog"
@@ -14,15 +14,14 @@ import (
 	"github.com/Djarvur/go-silly-enum/internal/parser"
 )
 
-const fileNameTmplSrc = `{{.Dir}}/enum_silly_codegen_{{.Enum}}{{if .Test}}_test{{end}}.go`
+const fileNameBase = "enum_silly_codegen"
 
 //nolint:gochecknoglobals
 var (
-	//go:embed codegen.go.tmpl
+	//go:embed enum_silly_codegen.go.tmpl
 	fileContentTmplSrc string
 
 	fileContentTmpl = template.Must(template.New("fileContent").Parse(fileContentTmplSrc))
-	fileNameTmpl    = template.Must(template.New("fileName").Parse(fileNameTmplSrc))
 )
 
 // Generate generates the files, calling parser and extractor.
@@ -39,36 +38,32 @@ func Generate(
 		return fmt.Errorf("parsing sources: %w", err)
 	}
 
-	for enumDef, values := range extractor.Extract(pkgs, fset, enumName) {
-		if err = writeFile(enumDef, values); err != nil {
+	for pkg, enums := range extractor.Extract(pkgs, fset, enumName) {
+		if err = writeFile(pkg, enums); err != nil {
 			return fmt.Errorf("generating: %w", err)
 		}
 
-		log.Debug("Generate", "enum", enumDef, "values", values)
+		log.Debug("Generate", "enum", pkg, "enums", enums)
 	}
 
 	return nil
 }
 
-func buildFileName(data extractor.EnumDef) (string, error) {
-	var b bytes.Buffer
-
-	if err := fileNameTmpl.Execute(&b, data); err != nil {
-		return "", fmt.Errorf("%+v: %w", data, err)
+func buildFileName(pkg extractor.Package) string {
+	if pkg.IsTest {
+		return path.Join(pkg.Dir, fileNameBase+"_test.go")
 	}
 
-	return b.String(), nil
+	return path.Join(pkg.Dir, fileNameBase+".go")
 }
 
-func writeFile(enumDef extractor.EnumDef, values []string) error {
-	fileName, err := buildFileName(enumDef)
-	if err != nil {
-		return fmt.Errorf("building file name: %w", err)
-	}
+func writeFile(pkg extractor.Package, enums []extractor.Enum) error {
+	var (
+		fileName    = buildFileName(pkg)
+		fileNameTmp = fileName + ".tmp"
+	)
 
-	fileNameTmp := fileName + ".tmp"
-
-	file, err := os.Create(fileName + ".tmp") //nolint:gosec
+	file, err := os.Create(fileNameTmp) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("opening file %q: %w", fileNameTmp, err)
 	}
@@ -76,11 +71,11 @@ func writeFile(enumDef extractor.EnumDef, values []string) error {
 	defer file.Close() //nolint:errcheck
 
 	type renderData struct {
-		extractor.EnumDef
-		Values []string
+		Package extractor.Package
+		Enums   []extractor.Enum
 	}
 
-	if err = fileContentTmpl.Execute(file, renderData{EnumDef: enumDef, Values: values}); err != nil {
+	if err = fileContentTmpl.Execute(file, renderData{Package: pkg, Enums: enums}); err != nil {
 		return fmt.Errorf("writing file %q: %w", fileNameTmp, err)
 	}
 

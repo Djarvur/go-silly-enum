@@ -31,7 +31,7 @@ var Generate = func() *cobra.Command { //nolint:gochecknoglobals
 	cmd.Flags().StringArray(buildTagsFlag, nil, "build tags to be used for sources parsing")
 	cmd.Flags().StringArray(envVarsFlag, nil, "environment variables to be used for sources parsing")
 	cmd.Flags().Bool(excludeTestsFlag, false, "do not process test files")
-	cmd.Flags().Var(enumName, enumNameFlag, "regexp to find the Enum type(s)")
+	cmd.Flags().Var(enumName, enumNameFlag, "regexp to find the Name type(s)")
 
 	return cmd
 }()

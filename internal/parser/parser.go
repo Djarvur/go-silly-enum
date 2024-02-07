@@ -33,9 +33,6 @@ func Parse(
 			BuildFlags: tags,
 			Env:        append(os.Environ(), env...),
 			Tests:      includeTests,
-			ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
-				return parseFile(fset, filename, src, log)
-			},
 		}
 
 		pkgs, err := packages.Load(cfg, "./...")
